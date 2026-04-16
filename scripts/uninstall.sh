@@ -8,17 +8,18 @@ SETTINGS="$CLAUDE_DIR/settings.json"
 echo "=== Uninstalling statusline-buddy ==="
 
 # 1. Remove MCP server
-echo "[1/3] Removing MCP server..."
+echo "[1/4] Removing MCP server..."
 claude mcp remove statusline-buddy -s user 2>/dev/null || true
 
 # 2. Restore original statusline
-echo "[2/3] Restoring statusline..."
-ORIGINAL="$BUDDY_DIR/original-statusline-command.sh"
-if [ -f "$ORIGINAL" ] && [ -f "$SETTINGS" ]; then
+echo "[2/4] Restoring statusline..."
+ORIGINAL_CMD="$BUDDY_DIR/original-statusline-cmd.txt"
+if [ -f "$ORIGINAL_CMD" ] && [ -f "$SETTINGS" ]; then
+  saved_cmd=$(cat "$ORIGINAL_CMD")
   node -e "
     const fs=require('fs');
     const s=JSON.parse(fs.readFileSync('$SETTINGS','utf8'));
-    s.statusLine.command='bash $ORIGINAL';
+    s.statusLine={type:'command',command:'$saved_cmd',padding:0};
     fs.writeFileSync('$SETTINGS',JSON.stringify(s,null,2));
   "
   echo "  Original statusline restored"
@@ -33,10 +34,12 @@ elif [ -f "$SETTINGS" ]; then
 fi
 
 # 3. Remove skill file
-echo "[3/3] Removing /buddy skill..."
+echo "[3/4] Removing /buddy skill..."
 rm -rf "$CLAUDE_DIR/skills/buddy"
+
+# 4. Remove buddy data directory
+echo "[4/4] Removing buddy data..."
+rm -rf "$BUDDY_DIR"
 
 echo ""
 echo "=== Uninstall complete! ==="
-echo "Profile data remains at $BUDDY_DIR/profile.json"
-echo "To delete everything: rm -rf $BUDDY_DIR"

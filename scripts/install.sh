@@ -48,6 +48,7 @@ case "$choice" in
     ;;
   3)
     if [ -n "$existing_cmd" ]; then
+      echo "$existing_cmd" > "$BUDDY_DIR/original-statusline-cmd.txt"
       echo "#!/usr/bin/env bash" > "$BUDDY_DIR/original-statusline-command.sh"
       echo "input=\$(cat)" >> "$BUDDY_DIR/original-statusline-command.sh"
       echo "echo \"\$input\" | $existing_cmd" >> "$BUDDY_DIR/original-statusline-command.sh"
