@@ -1,12 +1,13 @@
 import { loadState, saveState } from "../state.js";
+import { t } from "../i18n.js";
 
 export const renameTool = {
   name: "buddy_rename",
-  description: "버디의 이름을 변경합니다.",
+  description: "Rename your buddy.",
   inputSchema: {
     type: "object" as const,
     properties: {
-      name: { type: "string", description: "새 이름" },
+      name: { type: "string", description: "New name" },
     },
     required: ["name"],
   },
@@ -15,6 +16,7 @@ export const renameTool = {
     const old = state.name;
     state.name = args.name;
     await saveState(state);
-    return { content: [{ type: "text" as const, text: `"${old}" → "${args.name}"` }] };
+    const fn = t("rename_result", state.lang) as (o: string, n: string) => string;
+    return { content: [{ type: "text" as const, text: fn(old, args.name) }] };
   },
 };

@@ -1,34 +1,42 @@
 #!/usr/bin/env bash
 set -e
 
-BUDDY_DIR="$HOME/.claude-buddy"
+BUDDY_DIR="$HOME/.statusline-buddy"
 CLAUDE_DIR="$HOME/.claude"
 SETTINGS="$CLAUDE_DIR/settings.json"
 
-echo "=== statusline-buddy 제거 ==="
+echo "=== Uninstalling statusline-buddy ==="
 
-# 1. MCP 서버 제거
-echo "[1/3] MCP 서버 제거..."
-claude mcp remove buddy-statusline 2>/dev/null || true
+# 1. Remove MCP server
+echo "[1/3] Removing MCP server..."
+claude mcp remove statusline-buddy -s user 2>/dev/null || true
 
-# 2. statusline 원복
-echo "[2/3] statusline 원복..."
+# 2. Restore original statusline
+echo "[2/3] Restoring statusline..."
 ORIGINAL="$BUDDY_DIR/original-statusline-command.sh"
 if [ -f "$ORIGINAL" ] && [ -f "$SETTINGS" ]; then
-  tmp=$(mktemp)
-  jq --arg cmd "bash $ORIGINAL" '.statusLine.command = $cmd' "$SETTINGS" > "$tmp" && mv "$tmp" "$SETTINGS"
-  echo "  기존 statusline으로 복원됨"
+  node -e "
+    const fs=require('fs');
+    const s=JSON.parse(fs.readFileSync('$SETTINGS','utf8'));
+    s.statusLine.command='bash $ORIGINAL';
+    fs.writeFileSync('$SETTINGS',JSON.stringify(s,null,2));
+  "
+  echo "  Original statusline restored"
 elif [ -f "$SETTINGS" ]; then
-  tmp=$(mktemp)
-  jq 'del(.statusLine)' "$SETTINGS" > "$tmp" && mv "$tmp" "$SETTINGS"
-  echo "  statusline 설정 제거됨"
+  node -e "
+    const fs=require('fs');
+    const s=JSON.parse(fs.readFileSync('$SETTINGS','utf8'));
+    delete s.statusLine;
+    fs.writeFileSync('$SETTINGS',JSON.stringify(s,null,2));
+  "
+  echo "  Statusline config removed"
 fi
 
-# 3. 스킬 파일 제거
-echo "[3/3] /buddy 스킬 제거..."
+# 3. Remove skill file
+echo "[3/3] Removing /buddy skill..."
 rm -rf "$CLAUDE_DIR/skills/buddy"
 
 echo ""
-echo "=== 제거 완료! ==="
-echo "프로필 데이터는 $BUDDY_DIR/profile.json에 남아있습니다."
-echo "완전히 삭제하려면: rm -rf $BUDDY_DIR"
+echo "=== Uninstall complete! ==="
+echo "Profile data remains at $BUDDY_DIR/profile.json"
+echo "To delete everything: rm -rf $BUDDY_DIR"

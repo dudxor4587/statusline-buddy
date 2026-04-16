@@ -5,25 +5,26 @@ input=$(cat)
 
 reset=$'\033[0m'
 dim=$'\033[90m'
+white=$'\033[37m'
 
 # ─── Buddy from profile.json ─────────────────────────────────────────────────
-PROFILE="$HOME/.claude-buddy/profile.json"
-DEFAULT_ART='   ┌─────────┐
-   │  •   •  │
-   │    ◡    │
-   └────┬────┘
-   ┌────┴────┐
-   │         │
-   │  Buddy  │
-   │         │
-   └─┬─────┬─┘
-     │     │
-    ─┘     └─'
+PROFILE="$HOME/.statusline-buddy/profile.json"
+DEFAULT_ART='┌─────────┐
+│  •   •  │
+│    ◡    │
+└────┬────┘
+┌────┴────┐
+│         │
+│         │
+│         │
+└─┬─────┬─┘
+  │     │
+ ─┘     └─'
 
 if [ -f "$PROFILE" ]; then
-  buddy_name=$(jq -r '.name // "Buddy"' "$PROFILE")
-  art=$(jq -r '.art // ""' "$PROFILE")
-  speech=$(jq -r '.speech // ""' "$PROFILE")
+  buddy_name=$(node -p "try{JSON.parse(require('fs').readFileSync('$PROFILE','utf8')).name||'Buddy'}catch(e){'Buddy'}" 2>/dev/null || echo "Buddy")
+  art=$(node -e "try{process.stdout.write(JSON.parse(require('fs').readFileSync('$PROFILE','utf8')).art||'')}catch(e){}" 2>/dev/null)
+  speech=$(node -p "try{JSON.parse(require('fs').readFileSync('$PROFILE','utf8')).speech||''}catch(e){''}" 2>/dev/null)
 else
   buddy_name="Buddy"
   art=""
@@ -63,7 +64,6 @@ char_len=${#buddy_name}
 wide_count=$(( (byte_len - char_len) / 2 ))
 name_display_w=$(( char_len + wide_count ))
 
-white=$'\033[37m'
 sep_width=$max_w
 left_len=$(( (sep_width - name_display_w - 2) / 2 ))
 right_len=$(( sep_width - name_display_w - 2 - left_len ))
@@ -72,7 +72,7 @@ right_len=$(( sep_width - name_display_w - 2 - left_len ))
 printf "%b\n" "${dim}$(printf '─%.0s' $(seq 1 $left_len)) ${white}${buddy_name}${reset} ${dim}$(printf '─%.0s' $(seq 1 $right_len))${reset}"
 
 # ─── Run original statusline (if saved) ──────────────────────────────────────
-ORIGINAL="$HOME/.claude-buddy/original-statusline-command.sh"
+ORIGINAL="$HOME/.statusline-buddy/original-statusline-command.sh"
 if [ -f "$ORIGINAL" ]; then
   echo "$input" | bash "$ORIGINAL"
 fi

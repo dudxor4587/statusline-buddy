@@ -2,17 +2,20 @@ import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-const STATE_DIR = join(homedir(), ".claude-buddy");
+const STATE_DIR = join(homedir(), ".statusline-buddy");
 const STATE_FILE = join(STATE_DIR, "profile.json");
+
+export type Lang = "ko" | "en";
 
 export interface BuddyState {
   name: string;
   art: string | null;
   speech: string | null;
+  lang: Lang;
 }
 
 function defaultState(): BuddyState {
-  return { name: "Buddy", art: null, speech: null };
+  return { name: "Buddy", art: null, speech: null, lang: "en" };
 }
 
 export async function loadState(): Promise<BuddyState> {

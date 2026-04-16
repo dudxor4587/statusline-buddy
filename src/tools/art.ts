@@ -1,12 +1,13 @@
 import { loadState, saveState } from "../state.js";
+import { t } from "../i18n.js";
 
 export const artTool = {
   name: "buddy_art",
-  description: "버디의 ASCII 아트를 직접 등록하거나 초기화합니다. 빈 문자열이면 기본 아트로 초기화합니다.",
+  description: "Set custom ASCII art or reset to default (empty string = reset).",
   inputSchema: {
     type: "object" as const,
     properties: {
-      ascii: { type: "string", description: "커스텀 ASCII 아트 (빈 문자열=초기화)" },
+      ascii: { type: "string", description: "Custom ASCII art (empty = reset)" },
     },
     required: ["ascii"],
   },
@@ -14,6 +15,9 @@ export const artTool = {
     const state = await loadState();
     state.art = args.ascii || null;
     await saveState(state);
-    return { content: [{ type: "text" as const, text: args.ascii ? "아트 변경 완료." : "기본 아트로 초기화." }] };
+    const msg = args.ascii
+      ? t("art_changed", state.lang) as string
+      : t("art_reset", state.lang) as string;
+    return { content: [{ type: "text" as const, text: msg }] };
   },
 };

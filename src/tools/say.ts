@@ -1,12 +1,13 @@
 import { loadState, saveState } from "../state.js";
+import { t } from "../i18n.js";
 
 export const sayTool = {
   name: "buddy_say",
-  description: "버디에게 특정 대사를 말하게 합니다. 빈 문자열이면 말풍선을 제거합니다.",
+  description: "Set buddy speech bubble. Empty string removes it.",
   inputSchema: {
     type: "object" as const,
     properties: {
-      message: { type: "string", description: "말풍선 대사 (빈 문자열=제거)" },
+      message: { type: "string", description: "Speech text (empty = clear)" },
     },
     required: ["message"],
   },
@@ -14,6 +15,9 @@ export const sayTool = {
     const state = await loadState();
     state.speech = args.message || null;
     await saveState(state);
-    return { content: [{ type: "text" as const, text: args.message ? `💬 ${args.message}` : "말풍선 제거." }] };
+    const msg = args.message
+      ? `${t("say_set", state.lang)} ${args.message}`
+      : t("say_cleared", state.lang) as string;
+    return { content: [{ type: "text" as const, text: msg }] };
   },
 };

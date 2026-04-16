@@ -3,63 +3,92 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
-BUDDY_DIR="$HOME/.claude-buddy"
+BUDDY_DIR="$HOME/.statusline-buddy"
 CLAUDE_DIR="$HOME/.claude"
 SETTINGS="$CLAUDE_DIR/settings.json"
 
-echo "=== statusline-buddy 설치 ==="
+echo "=== Installing statusline-buddy ==="
 
-# 1. 의존성 설치
-echo "[1/4] 의존성 설치..."
+# 1. Install dependencies
+echo "[1/4] Installing dependencies..."
 cd "$PROJECT_DIR" && npm install --silent
 
-# 2. MCP 서버 등록
-echo "[2/4] MCP 서버 등록..."
-claude mcp remove buddy-statusline 2>/dev/null || true
-claude mcp add buddy-statusline -- npx tsx "$PROJECT_DIR/src/index.ts"
+# 2. Register MCP server
+echo "[2/4] Registering MCP server..."
+claude mcp remove statusline-buddy -s user 2>/dev/null || true
+claude mcp add statusline-buddy -s user -- npx tsx "$PROJECT_DIR/src/index.ts"
 
-# 3. 기존 statusline 백업 + buddy wrapper 설치
-echo "[3/4] statusline 설정..."
+# 3. Statusline setup
+echo "[3/4] Setting up statusline..."
 mkdir -p "$BUDDY_DIR"
 
-# 기존 statusline command 백업
+# Detect existing statusline
+existing_cmd=""
 if [ -f "$SETTINGS" ]; then
-  existing_cmd=$(jq -r '.statusLine.command // ""' "$SETTINGS" 2>/dev/null)
-  if [ -n "$existing_cmd" ] && [[ "$existing_cmd" != *"buddy-statusline.sh"* ]]; then
-    # 기존 커맨드가 인라인이면 스크립트로 저장
-    if [ -f "$existing_cmd" ] || [[ "$existing_cmd" == *".sh"* ]]; then
-      cp "$existing_cmd" "$BUDDY_DIR/original-statusline-command.sh" 2>/dev/null || true
-    else
-      echo "#!/usr/bin/env bash" > "$BUDDY_DIR/original-statusline-command.sh"
-      echo "$existing_cmd" >> "$BUDDY_DIR/original-statusline-command.sh"
-    fi
-    chmod +x "$BUDDY_DIR/original-statusline-command.sh"
-    echo "  기존 statusline 백업 완료"
-  fi
+  existing_cmd=$(node -p "try{JSON.parse(require('fs').readFileSync('$SETTINGS','utf8')).statusLine?.command||''}catch(e){''}" 2>/dev/null)
+  [[ "$existing_cmd" == *"statusline-buddy.sh"* ]] && existing_cmd=""
 fi
 
-# buddy wrapper를 statusline으로 설정
-WRAPPER="$PROJECT_DIR/statusline/buddy-statusline.sh"
+echo ""
+echo "Choose your statusline setup:"
+echo "  1) Buddy only"
+echo "  2) Buddy + bundled statusline (folder, branch, model, context)"
+if [ -n "$existing_cmd" ]; then
+  echo "  3) Buddy + your existing statusline"
+fi
+echo ""
+
+read -r -p "Choose [1/2$([ -n "$existing_cmd" ] && echo '/3')]: " choice
+
+case "$choice" in
+  2)
+    cp "$PROJECT_DIR/statusline/default-statusline.sh" "$BUDDY_DIR/original-statusline-command.sh"
+    chmod +x "$BUDDY_DIR/original-statusline-command.sh"
+    echo "  Bundled statusline will be used"
+    ;;
+  3)
+    if [ -n "$existing_cmd" ]; then
+      echo "#!/usr/bin/env bash" > "$BUDDY_DIR/original-statusline-command.sh"
+      echo "input=\$(cat)" >> "$BUDDY_DIR/original-statusline-command.sh"
+      echo "echo \"\$input\" | $existing_cmd" >> "$BUDDY_DIR/original-statusline-command.sh"
+      chmod +x "$BUDDY_DIR/original-statusline-command.sh"
+      echo "  Existing statusline backed up"
+    else
+      echo "  No existing statusline found, using buddy only"
+    fi
+    ;;
+  *)
+    rm -f "$BUDDY_DIR/original-statusline-command.sh"
+    echo "  Buddy only"
+    ;;
+esac
+
+WRAPPER="$PROJECT_DIR/statusline/statusline-buddy.sh"
 chmod +x "$WRAPPER"
 
-# settings.json 업데이트
+# Update settings.json
 if [ -f "$SETTINGS" ]; then
-  tmp=$(mktemp)
-  jq --arg cmd "bash $WRAPPER" '.statusLine = {"type": "command", "command": $cmd, "padding": 0}' "$SETTINGS" > "$tmp" && mv "$tmp" "$SETTINGS"
+  node -e "
+    const fs=require('fs');
+    const s=JSON.parse(fs.readFileSync('$SETTINGS','utf8'));
+    s.statusLine={type:'command',command:'bash $WRAPPER',padding:0};
+    fs.writeFileSync('$SETTINGS',JSON.stringify(s,null,2));
+  "
 else
   mkdir -p "$CLAUDE_DIR"
-  echo "{\"statusLine\":{\"type\":\"command\",\"command\":\"bash $WRAPPER\",\"padding\":0}}" | jq . > "$SETTINGS"
+  node -e "
+    const fs=require('fs');
+    const s={statusLine:{type:'command',command:'bash $WRAPPER',padding:0}};
+    fs.writeFileSync('$SETTINGS',JSON.stringify(s,null,2));
+  "
 fi
 
-# 4. 스킬 파일 복사
-echo "[4/4] /buddy 스킬 등록..."
+# 4. Install skill file
+echo "[4/4] Installing /buddy skill..."
 mkdir -p "$CLAUDE_DIR/skills/buddy"
 cp "$PROJECT_DIR/skill/SKILL.md" "$CLAUDE_DIR/skills/buddy/SKILL.md"
 
 echo ""
-echo "=== 설치 완료! ==="
-echo "Claude Code를 재시작하면 적용됩니다."
-echo "  /buddy       — 버디 보기"
-echo "  /buddy art   — ASCII 아트 변경"
-echo "  /buddy say   — 말풍선"
-echo "  /buddy rename — 이름 변경"
+echo "=== Installation complete! ==="
+echo "Restart Claude Code to apply."
+echo "/buddy help  — show available commands"
